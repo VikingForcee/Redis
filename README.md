@@ -1,185 +1,207 @@
-Mini Redis Server
-A lightweight, in-memory key-value store inspired by Redis, implemented in C++ for high performance. This server supports basic Redis commands (SET, GET, DEL, PEXPIRE, PTTL, KEYS, ZADD, ZREM, ZSCORE, ZQUERY) and is designed to run on both Windows and Linux, with deployment options for Render and Docker.
-Features
+# Mini Redis Server
 
-Key-Value Storage: Supports string key-value pairs.
-Sorted Sets: Implements sorted sets with AVL trees for efficient range queries.
-TTL Support: Time-to-live for keys with automatic expiration.
-Thread Pool: Asynchronous deletion of large data structures.
-Cross-Platform: Compatible with Windows (Visual Studio Code) and Linux (Docker/Render).
-Event-Driven: Uses select for handling multiple client connections efficiently.
+A lightweight, high-performance, in-memory key–value store inspired by Redis, implemented in C++. It supports a subset of Redis-style commands (strings, sorted sets, TTL) and is portable across Windows and Linux. Deployment options include local builds, Docker containers, and Render.
 
-Benchmark Results
-The server was benchmarked using a Python script (bench.py) on a Windows system. Below are the results for various configurations:
-Default Configuration (100,000 SET operations)
+---
 
-Total Ops Completed: 100,000
-Total Time: 3.044 seconds
-Throughput: 32,846.70 ops/s
-Latency:
-Average: 0.290 ms
-P50: 0.254 ms
-P95: 0.602 ms
-P99: 0.857 ms
-P99.9: 1.320 ms
-Max: 8.409 ms
+## Table of Contents
+- [Features](#features)
+- [Supported Commands](#supported-commands)
+- [Quick Start](#quick-start)
+  - [Windows (Visual Studio Code)](#windows-visual-studio-code)
+  - [Linux Build](#linux-build)
+  - [Docker](#docker)
+  - [Deploy on Render](#deploy-on-render)
+- [Connecting With redis-cli](#connecting-with-redis-cli)
+- [Benchmarks](#benchmarks)
+- [Project Structure](#project-structure)
+- [Architecture Overview](#architecture-overview)
+- [Configuration Notes](#configuration-notes)
+- [Limitations and Future Work](#limitations-and-future-work)
+- [Contributing](#contributing)
+- [License](#license)
 
+---
 
+## Features
+- Key–Value string storage.
+- Sorted sets backed by an AVL tree for efficient score-ordered lookups and range-style queries.
+- TTL support (PEXPIRE, PTTL) with automatic expiration.
+- Background thread pool used for asynchronous clean-up of large data structures.
+- Cross-platform networking layer: builds on Windows (MSVC / Visual Studio Code) and Linux (g++).
+- Event-driven I/O uses `select()` for multiplexing multiple client connections.
 
-High Load (1,000,000 SET operations, 50 threads)
+---
 
-Total Ops Completed: 1,000,000
-Total Time: 36.744 seconds
-Throughput: 27,215.01 ops/s
-Latency:
-Average: 1.822 ms
-P50: 1.561 ms
-P95: 4.250 ms
-P99: 6.075 ms
-P99.9: 8.865 ms
-Max: 68.679 ms
+## Supported Commands
+| Command | Description | Example |
+|---------|-------------|---------|
+| `SET key value` | Set string value. | `SET foo bar` |
+| `GET key` | Get string value. | `GET foo` |
+| `DEL key` | Delete key. | `DEL foo` |
+| `PEXPIRE key ms` | Set TTL in milliseconds. | `PEXPIRE foo 5000` |
+| `PTTL key` | Return remaining TTL in ms. | `PTTL foo` |
+| `KEYS pattern` | Return keys matching glob-like pattern (`*`, `?`). | `KEYS *` |
+| `ZADD zset score member` | Add/update sorted-set member. | `ZADD ranks 1.0 alice` |
+| `ZREM zset member` | Remove member from sorted set. | `ZREM ranks alice` |
+| `ZSCORE zset member` | Get score of member. | `ZSCORE ranks alice` |
+| `ZQUERY zset min max` | Range query by score (inclusive). | `ZQUERY ranks 0 100` |
 
+> Notes:  
+> - Command grammar is simplified; multi-bulk protocol coverage is limited.  
+> - Numeric ranges in `ZQUERY` are parsed as doubles.  
 
+---
 
-Mixed Workload (80% read, 15% write, 5% delete)
+## Quick Start
 
-Total Ops Completed: 100,000
-Total Time: 3.123 seconds
-Throughput: 32,019.48 ops/s
-Latency:
-Average: 0.300 ms
-P50: 0.269 ms
-P95: 0.598 ms
-P99: 0.813 ms
-P99.9: 1.155 ms
-Max: 7.680 ms
-
-
-
-Large Values (512-byte values)
-
-Total Ops Completed: 100,000
-Total Time: 3.213 seconds
-Throughput: 31,123.64 ops/s
-Latency:
-Average: 0.306 ms
-P50: 0.270 ms
-P95: 0.638 ms
-P99: 0.890 ms
-P99.9: 1.274 ms
-Max: 8.684 ms
-
-
-
-Latency Sampling (every 5 operations)
-
-Total Ops Completed: 100,000
-Total Time: 2.865 seconds
-Throughput: 34,898.79 ops/s
-Latency:
-Average: 0.277 ms
-P50: 0.247 ms
-P95: 0.569 ms
-P99: 0.787 ms
-P99.9: 1.163 ms
-Max: 6.382 ms
-
-
-
-Prerequisites
-
-Windows Development:
-Visual Studio Code
-CMake (3.10 or higher)
-C++ compiler (e.g., MSVC via Visual Studio Build Tools)
-Git
-
-
-Linux/Docker:
-Docker (for containerized deployment)
-CMake, g++, make (for building on Linux)
-
-
-Testing:
-Redis client (e.g., redis-cli)
-Python (for running bench.py)
-
-
-
-Project Structure
-Redis/
-|-RedisMain/
-|    ├── avl.cpp
-|    ├── avl.h
-|    ├── common.h
-|    ├── hashtable.cpp
-|    ├── hashtable.h
-|    ├── heap.cpp
-|    ├── heap.h
-|    ├── list.h
-|    ├── server.cpp
-|    ├── thread_pool.cpp
-|    ├── thread_pool.h
-|    ├── zset.cpp
-|    ├── zset.h
-|    ├── CMakeLists.txt
-|    ├── Dockerfile
-|
-|── testing/
-|    |── bench.py
-|    |── bench2.py
-|    
-|── README.md
-
-Setup Instructions (Windows with Visual Studio Code)
-
-Clone the Repository:
+### Windows (Visual Studio Code)
+```bash
 git clone https://github.com/VikingForcee/Redis.git
-cd Redis
-cd RedisMain
+cd Redis/RedisMain
+mkdir build
+cd build
+cmake ..
+cmake --build . --config Release
+```
 
-Install Dependencies:
+## Run the Server
+server.exe
+By default the server listens on localhost:1234.
 
-Install Visual Studio Code and the C/C++ extension by Microsoft.
-Ensure Git is installed.
+## Docker
+A Dockerfile is provided in RedisMain/
 
-Run the Server:
+```bash
+cd Redis/RedisMain
+docker build -t mini-redis-server .
+docker run --rm -p 1234:1234 mini-redis-server
+```
 
-Execute the generated server.exe in the build directory.
-The server listens on localhost:1234.
+## Connecting with Redis CLI
 
+```bash
+redis-cli -h <host> -p 1234
+```
 
-Test with redis-cli:
-redis-cli -h localhost -p 1234
-
-Example commands:
+Examples:
 SET key value
 GET key
 ZADD zset 1.0 member
 ZSCORE zset member
 
 
-Test the Server:
+## Benchmarks
 
-Connect to localhost:1234 using redis-cli.
+Benchmarks were run on Windows using testing/bench.py unless noted. Times include network overhead on localhost.
 
+Summary Metrics
+``` bash
+Scenario	Operations	Threads	Total Time (s)	Throughput (ops/s)	Avg Latency (ms)	P50	P95	P99	P99.9	Max (ms)
+Default	100,000 SET	1	3.044	32,846.70	0.290	0.254	0.602	0.857	1.320	8.409
+High Load	1,000,000 SET	50	36.744	27,215.01	1.822	1.561	4.250	6.075	8.865	68.679
+Mixed (80% GET, 15% SET, 5% DEL)	100,000 ops	multi	3.123	32,019.48	0.300	0.269	0.598	0.813	1.155	7.680
+Large Values (512B)	100,000 SET	1	3.213	31,123.64	0.306	0.270	0.638	0.890	1.274	8.684
+Latency Sample (sample every 5 ops)	100,000 SET	1	2.865	34,898.79	0.277	0.247	0.569	0.787	1.163	6.382
+```
 
-Configure Environment:
+Raw benchmark scripts live in testing/bench.py and testing/bench2.py.
 
-Set the port to 1234 in the service settings.
-Deploy the service.
+## Project Structure
 
+```bash
+Redis/
+├── RedisMain/
+│   ├── avl.cpp
+│   ├── avl.h
+│   ├── common.h
+│   ├── hashtable.cpp
+│   ├── hashtable.h
+│   ├── heap.cpp
+│   ├── heap.h
+│   ├── list.h
+│   ├── server.cpp
+│   ├── thread_pool.cpp
+│   ├── thread_pool.h
+│   ├── zset.cpp
+│   ├── zset.h
+│   ├── CMakeLists.txt
+│   ├── Dockerfile
+│
+├── testing/
+│   ├── bench.py
+│   ├── bench2.py
+│
+└── README.md
 
-Test the Deployment:
+```
 
-Use the Render-provided URL with redis-cli to test the server.
+## Architecture Overview
 
-Notes
+### Networking / Event Loop
+Uses select() to multiplex client sockets.
+Simple line-based or space-delimited command parsing (see server.cpp).
 
-The server uses select for event handling, which is cross-platform but may not scale to thousands of connections. For production, consider replacing with epoll (Linux) or IOCP (Windows).
-The zset implementation uses AVL trees for sorted sets, ensuring efficient range queries.
-The thread pool uses C++11 std::thread for portability.
-Ensure port 1234 is open in your firewall or cloud provider settings for deployment.
+### Data Structures
+String keys stored in a hash table (hashtable.*).
+TTL metadata tracked via a min-heap (heap.*) keyed by expiration timestamps; expired keys lazily removed.
+Sorted sets implemented using an AVL tree (avl.* + zset.*) keyed by score; supports score lookups and score-range scans.
 
-Contributing
-Contributions are welcome! Please submit a pull request or open an issue for bugs, features, or improvements.
+### TTL & Expiration Flow
+PEXPIRE registers expiration time in the heap.
+Periodic or on-access checks clear expired keys.
+Large deletions may be delegated to the thread pool.
+
+### Thread Pool
+C++11 std::thread based.
+Tasks queued for background cleanup/non-blocking operations.
+Size configurable at compile time or via a constant (see thread_pool.*).
+
+## Configuration Notes
+Default listen port is 1234. Update in source or through a command-line flag if implemented (check server.cpp).
+
+Ensure port 1234 is open in local firewall, container runtime, and cloud security groups.
+
+For large-scale deployments, consider replacing select() with:
+
+epoll (Linux)
+
+IOCP (Windows)
+
+Persistence is not implemented; all data is in-memory and lost on restart.
+
+Authentication and ACLs are not implemented; run behind trusted network boundaries.
+
+## Limitations and Future Work
+Full Redis protocol (RESP) parsing is partial; multiline values and binary-safe payloads need work.
+
+select() scales poorly to thousands of concurrent sockets; move to epoll/kqueue/IOCP for higher concurrency.
+
+No replication, clustering, or persistence (AOF/RDB-style snapshots).
+
+Metrics / monitoring endpoints would be helpful.
+
+Add CI builds for Windows + Linux.
+
+Add fuzz + stress tests for parser and data structures.
+
+Expand ZSET API: ZRANGE, ZRANGEBYSCORE, ZCARD, etc.
+
+## Contributing
+Contributions are welcome. Please:
+
+Fork the repository.
+
+Create a feature branch.
+
+Follow existing coding style (see headers/sources).
+
+Add tests (benchmark or unit) when possible.
+
+Open a pull request describing the change and performance impact.
+
+Bug reports are also welcome—open an issue with reproducible steps, environment details, and expected vs. actual behavior.
+
+## Acknowledgments
+Inspired by Redis data structures and semantics. Not a drop-in replacement.
+The project could'nt have been possible without Build Your Own X : Mini Redis Server (Book)
